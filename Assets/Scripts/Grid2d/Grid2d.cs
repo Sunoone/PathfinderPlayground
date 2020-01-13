@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Grid2d.CustomNodes;
+using CustomAttributes;
 
 namespace Grid2d
 {
@@ -79,7 +80,6 @@ namespace Grid2d
         public List<Node> GetNeighbours(Node node)
         {
             List<Node> neighbours = new List<Node>();
-
             for (int x = -1; x <= 1; x++)
             {
                 for (int y = -1; y <= 1; y++)
@@ -99,6 +99,13 @@ namespace Grid2d
                 }
             }
             return neighbours;
+        }
+
+        public void SetNeighbours(Node node)
+        {
+            // Tricky to set
+            List<Node> neighbours = GetNeighbours(node);
+            node.Connections = neighbours;
         }
 
         // Gets the nearest node to worldposition.
@@ -131,13 +138,11 @@ namespace Grid2d
                 for (int y = 0; y < _gridSizeY; y++)
                 {
 
-                    Vector3 worldPoint = worldBottomLeft + Vector3.right * (x * _nodeDiameter + NodeRadius) + Vector3.up * (y * _nodeDiameter + NodeRadius);
-
-                    _grid[x, y] = CreateNode(worldPoint, x, y);
-                    
-                   
+                    Vector3 worldPoint = worldBottomLeft + Vector3.right * (x * _nodeDiameter + NodeRadius) + Vector3.up * (y * _nodeDiameter + NodeRadius);                 
+                    _grid[x, y] = CreateNode(worldPoint, x, y);                           
                 }
             }
+            SetupNodeNetwork();
         }
 
         // Every project should setup the correct layer priorities.
@@ -161,6 +166,21 @@ namespace Grid2d
             if (_walkableRegionsDictionary.ContainsKey(layer))
                 movementPenalty = _walkableRegionsDictionary[layer];
             return new Node(layer, worldPoint, x, y, movementPenalty);
+        }
+
+        private void SetupNodeNetwork()
+        {
+            // Neighbours
+            // Custom connections..?
+
+
+        }
+
+        private void AddHeightConnectionsToNetwork()
+        {
+
+            // World position needs to be different. Every node should have a extra depth.?
+
         }
 
 #if UNITY_EDITOR     

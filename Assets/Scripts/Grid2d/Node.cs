@@ -11,6 +11,8 @@ namespace Grid2d
 
         public int MovementPenalty { get; private set; }
 
+        public List<Node> Connections { get; set; }
+
         public int GridX { get; private set; }
         public int GridY { get; private set; }
 

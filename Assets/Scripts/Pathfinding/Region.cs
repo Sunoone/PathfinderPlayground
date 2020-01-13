@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System;
+using Pathfinding.Collision;
 
 
 namespace Pathfinding
@@ -18,18 +19,19 @@ namespace Pathfinding
         // SectionIds share the same value if the regions can access each other. It prevents searching path's which are not connected in any way.
         public int EnclosureId;
 
+        private PathNetwork _pathingNetwork;
         public Vector3 WorldPosition { get; private set; }
         private Vector3 _regionSize;
         private Vector3 _gridSpacing;
-        private LayerMask _collisionMask;
 
         public Region[] NeighbouringRegions;
         public List<Node> Nodes = new List<Node>();
         private List<Vector3> _rayOrigins;
         private int width;
         private int height;
+        private int depth;
 
-        public Region(Vector3 worldPosition, Vector3 regionSize, Vector3 gridSpacing, LayerMask collisionMask)
+        public Region(PathNetwork pathingNetwork, Vector3 worldPosition, Vector3 regionSize, Vector3 gridSpacing, PathCollider[] colliders)
         {
 #if UNITY_EDITOR
             if (regionSize.x <= 0 || regionSize.y <= 0)
@@ -37,14 +39,17 @@ namespace Pathfinding
             if (gridSpacing.x <= 0 || gridSpacing.y <= 0)
                 throw new Exception("GridSpacing too small.");
 #endif
-
+            _pathingNetwork = pathingNetwork;
             WorldPosition = worldPosition;
             _regionSize = regionSize;
             _gridSpacing = gridSpacing;
-            _collisionMask = collisionMask;
             CalculateRayPositions();
-            GenerateNodes();
+            GenerateNodes(colliders);
         }   
+
+        // 1 corner inside
+        // 1 edge inside
+        // Envelop
         
         public Node GetNodeForGridSpace(int x, int y)
         {
@@ -55,8 +60,10 @@ namespace Pathfinding
 
         private void CalculateRayPositions()
         {
-            width = (int)(_regionSize.x / _gridSpacing.x);
-            height = (int)(_regionSize.y / _gridSpacing.y);
+            width = Mathf.Max(Mathf.RoundToInt(_regionSize.x / _gridSpacing.x), 1);
+            height = Mathf.Max(Mathf.RoundToInt(_regionSize.y / _gridSpacing.y), 1);
+            depth = Mathf.Max(Mathf.RoundToInt(_regionSize.z / _gridSpacing.z), 1);
+
             Debug.Log(width + ", " + height);
             _rayOrigins = new List<Vector3>();
             Vector3 halfRegionSize = _regionSize / 2;
@@ -66,10 +73,10 @@ namespace Pathfinding
 
             Vector3 rayPosition = topRight;
             float z = topRight.z;
-            for (int x = 0; x <= width; x++)
+            for (int x = 0; x < width; x++)
             {              
                 rayPosition.x = bottomLeft.x + (x * _gridSpacing.x);
-                for (int y = 0; y <= height; y++)
+                for (int y = 0; y < height; y++)
                 {
                     rayPosition.y = bottomLeft.y + (y * _gridSpacing.y);
                     _rayOrigins.Add(rayPosition);
@@ -83,13 +90,19 @@ namespace Pathfinding
         }
 
         // What is a beautifull way to assign neighbours...
-        private void GenerateNodes()
+        private void GenerateNodes(PathCollider[] colliders)
         {
+
+
+
+
             int length = _rayOrigins.Count;
             for (int i = 0; i < length; i++)
             {
-
-                //RaycastHit2D[] hits = Physics2D.BoxCastAll(_rayOrigins[i], _gridSpacing, 0, Vector3.forward);
+                if (i == 0 || ((i + 1) % width == 0) || ((i + 1) % width == width -1) || i == length - 1)
+                {
+                    // The borders. Irrelevant for now. But eventually need links to each other.
+                }
                 RaycastHit2D[] hits = Physics2D.RaycastAll(_rayOrigins[i], Vector3.forward, _regionSize.z, _collisionMask);
                 foreach (var hit in hits)
                 {
@@ -101,14 +114,20 @@ namespace Pathfinding
                         throw new NotImplementedException();
                     }*/
                     int penalty = 0;
-                    Vector3 nodePosition = _rayOrigins[i];
-                    nodePosition.z = hit.transform.position.z;
-                    Node node = new Node(layer, nodePosition, penalty);
-                    int nodeHash = Node.HashFunction(nodePosition);
-                    if (!Node.Nodes.ContainsKey(nodeHash))
-                        Node.Nodes.Add(nodeHash, node);
+                    Vector3Int networkPosition =_pathingNetwork.GetNetworkPositionFromWorldPosition(hit.point);
+                    Node node = new Node(layer, networkPosition, hit.point, penalty);
+                    _pathingNetwork.UpdateNode(node);                   
                     Nodes.Add(node);
                 }
+            }
+            
+        }      
+
+        public void SetNeighboursForNodes()
+        {
+            foreach (var node in Nodes)
+            {
+                node.SetAvailableNeighbours(_pathingNetwork);
             }
         }
 
@@ -121,7 +140,7 @@ namespace Pathfinding
             UpdateNodes();
         }
 
-        private void UpdateNodes()
+        private void UpdateNodes(PathCollider[] dynamicColliders)
         {
             int length = _rayOrigins.Count;
             for (int i = 0; i < length; i++)
@@ -129,27 +148,33 @@ namespace Pathfinding
                 RaycastHit2D[] hits = Physics2D.RaycastAll(_rayOrigins[i], Vector3.forward, _regionSize.z, _collisionMask);
                 foreach (var hit in hits)
                 {
-                    Vector3 nodePosition = _rayOrigins[i];
-                    nodePosition.z = hit.transform.position.z;
-                    int nodeHash = Node.HashFunction(nodePosition);
-                    Node node = Node.Nodes[nodeHash];
-
+                    Vector3Int gridPosition = _pathingNetwork.GetNetworkPositionFromWorldPosition(hit.point);
+                 
                     int layer = hit.transform.gameObject.layer;
                     int penalty = 0;
 
-                    node.UpdateNodeLayer(layer, penalty);
+                    if (_pathingNetwork.TryGetNodeForNodePosition(gridPosition, out Node node))
+                    {                                
+                        node.UpdateNodeLayer(layer, penalty);
+                    }
+                    else
+                    {
+                        node = new Node(layer, gridPosition, hit.point, penalty);
+                        _pathingNetwork.UpdateNode(node);
+                        Nodes.Add(node);
+                    }
                 }
             }
         }
 
-        public Node GetClosestNode(Vector3 position)
+        public Node GetClosestNode(Vector3Int gridPosition)
         {
             Node nearestNode = Nodes[0];
-            float shortestDistance = (position - Nodes[0].WorldPosition).sqrMagnitude;
+            float shortestDistance = (gridPosition - Nodes[0].NetworkPosition).sqrMagnitude;
             int length = Nodes.Count;
             for (int i = 1; i < length; i++)
             {
-                float distance = (position - Nodes[i].WorldPosition).sqrMagnitude;
+                float distance = (gridPosition - Nodes[i].NetworkPosition).sqrMagnitude;
                 if (distance < shortestDistance)
                 {
                     nearestNode = Nodes[i];

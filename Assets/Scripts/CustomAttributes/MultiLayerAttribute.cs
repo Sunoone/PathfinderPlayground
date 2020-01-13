@@ -2,9 +2,12 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class MultiLayerAttribute : PropertyAttribute
+namespace CustomAttributes
 {
-    public int Index = 0;
-    public MultiLayerAttribute(int index) { Index = index; }
-    public MultiLayerAttribute() { }
+    public class MultiLayerAttribute : PropertyAttribute
+    {
+        public int Index = 0;
+        public MultiLayerAttribute(int index) { Index = index; }
+        public MultiLayerAttribute() { }
+    }
 }

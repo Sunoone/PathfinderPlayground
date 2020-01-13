@@ -8,7 +8,7 @@ namespace Algorithms
     {
         public static string DecToBin(this int num, int length = 32)
         {
-            length += (length / 4);
+            length += Mathf.CeilToInt(length / 4);
             char[] charArray = new char[length];
             for (int i = length - 1; i >= 0; i--)
             {

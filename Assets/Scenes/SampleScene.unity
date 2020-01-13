@@ -508,8 +508,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   RandomRange: 100
   _pathingNetworkSize: {x: 10, y: 10, z: 1}
-  _regionSize: {x: 0.5, y: 0.5, z: 0.5}
-  _gridSpacing: {x: 0.1, y: 0.1, z: 0.1}
+  _regionSize: {x: 5, y: 5, z: 1}
+  _gridSpacing: {x: 1, y: 1, z: 1}
   _collisionMask:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -543,6 +543,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   intToTest: 2147483647
+  shift: 0
 --- !u!1 &503590108
 GameObject:
   m_ObjectHideFlags: 0
@@ -1782,7 +1783,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1860639575
 Transform:
   m_ObjectHideFlags: 0
