@@ -100,6 +100,10 @@ namespace Path2D
             return closestNode;
         }
         // Checks every Node potentially behind the used Node.
+        public Node GetNodeBelow(Node node)
+        {
+            return GetNodeBelow(node, _agent.NetworkLayerMask);
+        }
         public Node GetNodeBelow(Node node, LayerMask allowedTerrain)
         {
             Vector3Int networkPosition = node.NetworkPosition;

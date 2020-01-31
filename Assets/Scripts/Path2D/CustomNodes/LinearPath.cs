@@ -9,7 +9,7 @@ namespace Path2D.CustomNodes
         {
             Full, 
             Single,
-            Manual
+            Manual,
         }
 
 #pragma warning disable 649
@@ -22,12 +22,7 @@ namespace Path2D.CustomNodes
 #pragma warning restore 649
 
         public override List<Node> CreateCustomNodeNetwork(NodeNetwork nodeNetwork)
-        { 
-            List<Node> innerNetwork = base.CreateCustomNodeNetwork(nodeNetwork);
-
-            if (_pathTransforms.Length == 0 || innerNetwork.Count == 0)
-                return innerNetwork;
-
+        {
             // Create NodeInfo array for all the new nodes that need to be created.
             NodeInfo[] nodeInfoArray = CreateDefaultNodeInfoArray();
 
@@ -37,12 +32,7 @@ namespace Path2D.CustomNodes
             List<Node> linearPathNetwork = new List<Node>();
             linearPathNetwork.Add(currentNode);
 
-            // Connect the first Node of the linearPathNetwork to all Nodes of the innerNetwork.
-            foreach (var modifiedNode in innerNetwork)
-            {
-                currentNode.AddConnection(modifiedNode);
-                modifiedNode.AddConnection(currentNode);
-            }
+            ConnectStartToNetwork(currentNode, nodeNetwork);
 
             // Create the other nodes and connect them to the linear path network.
             int length = _pathTransforms.Length;
@@ -59,24 +49,51 @@ namespace Path2D.CustomNodes
 
                 linearPathNetwork.Add(currentNode);
             }
+
+            ConnectEndToNetwork(currentNode, nodeNetwork);
+
+
+            return linearPathNetwork;
+        }
+
+        private void ConnectStartToNetwork(Node startNode, NodeNetwork nodeNetwork)
+        {
+            // Gets the entire area covered by the collider.
+            List<Node> innerNetwork = base.CreateCustomNodeNetwork(nodeNetwork);
+            if (_pathTransforms.Length == 0 || innerNetwork.Count == 0)
+                throw new System.Exception("No pathTransforms or innerNetwork found.");
+
+            // Connect the first Node of the linearPathNetwork to all Nodes of the innerNetwork.
+            foreach (var node in innerNetwork)
+            {
+                startNode.AddConnection(node);
+                node.AddConnection(startNode);
+            }
+        }
+        private void ConnectEndToNetwork(Node endNode, NodeNetwork nodeNetwork)
+        {
             Node connectionNode;
             // Depending on the connection type, the last Node will search a compatible node below it to create a network connection with.
             switch (_connectionType)
             {
                 case ConnectionType.Full:
                     // Connects the last Node and Node below both ways. This creates a 2-way connection.
-                    connectionNode = nodeNetwork.GetNodeBelow(currentNode, int.MaxValue);
+                    connectionNode = nodeNetwork.GetNodeBelow(endNode);
                     if (connectionNode != null)
                     {
-                        currentNode.AddConnection(connectionNode);
-                        connectionNode.AddConnection(currentNode);
+                        endNode.AddConnection(connectionNode);
+                        connectionNode.AddConnection(endNode);
                     }
+                    else
+                        throw new System.Exception("Cannot find node below.");
                     break;
                 case ConnectionType.Single:
                     // Connects the last Node and Node below one ways. This creates a 1-way connection from start to end.
-                    connectionNode = nodeNetwork.GetNodeBelow(currentNode, int.MaxValue);
+                    connectionNode = nodeNetwork.GetNodeBelow(endNode);
                     if (connectionNode != null)
-                        currentNode.AddConnection(connectionNode);
+                        endNode.AddConnection(connectionNode);
+                    else
+                        throw new System.Exception("Cannot find node below.");
                     break;
                 case ConnectionType.Manual:
                     // No connection made at all. Create another linearPathNetwork and connect it's end to this linearPathNetwork's end.
@@ -85,7 +102,6 @@ namespace Path2D.CustomNodes
                 default:
                     break;
             }
-            return linearPathNetwork;
         }
 
         // Gets all the info necessary to create Nodes for the pathLinearNetwork.
@@ -122,21 +138,22 @@ namespace Path2D.CustomNodes
         }
 
 #if UNITY_EDITOR
-        public bool ShowGizmos = true;
-        private void OnDrawGizmos()
+        public override void OnDrawGizmos()
         {
             if (_pathTransforms.Length == 0 || !ShowGizmos)
                 return;
 
             Gizmos.color = Color.blue;
 
-            Vector3 size = new Vector3((BoxCollider2d.size.x * transform.localScale.x), (BoxCollider2d.size.y * transform.localScale.y), 0);
-            Vector3 position = transform.position + new Vector3(BoxCollider2d.offset.x, BoxCollider2d.offset.y, 0);
+            Vector3 currentPosition = _pathTransforms[0].position;
+            Gizmos.DrawSphere(currentPosition, 0.1f);
+
+            Vector3 size = new Vector3((transform.localScale.x), (transform.localScale.y), 0);
+            Vector3 position = transform.position;
             Vector3 worldBottomLeft = position - (size / 2);
             Vector3 worldBottomRight = worldBottomLeft + new Vector3(size.x, 0, 0);
-            Vector3 worldTopLeft = worldBottomLeft + new Vector3(0, size.y, 0);    
+            Vector3 worldTopLeft = worldBottomLeft + new Vector3(0, size.y, 0);
             Vector3 worldTopRight = worldBottomLeft + size;
-            Vector3 currentPosition = _pathTransforms[0].position;
 
             Gizmos.DrawWireCube(position, size);
             Gizmos.DrawLine(worldBottomLeft, currentPosition);
@@ -144,13 +161,12 @@ namespace Path2D.CustomNodes
             Gizmos.DrawLine(worldTopLeft, currentPosition);
             Gizmos.DrawLine(worldTopRight, currentPosition);
 
-            Gizmos.DrawSphere(currentPosition, 0.1f);
             int length = _pathTransforms.Length;
             for (int i = 1; i < length; i++)
             {
                 Gizmos.DrawLine(_pathTransforms[i - 1].position, _pathTransforms[i].position);
                 Gizmos.DrawSphere(_pathTransforms[i].position, 0.1f);
-               
+
             }
         }
     }

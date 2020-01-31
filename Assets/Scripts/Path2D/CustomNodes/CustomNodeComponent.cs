@@ -5,8 +5,7 @@ using Path2D.Pathfinding;
 using CustomAttributes;
 
 namespace Path2D.CustomNodes {
-    // Manual nodes will be prioritized.
-    [RequireComponent(typeof(BoxCollider2D))][ExecuteInEditMode]
+
     public abstract class CustomNodeComponent : MonoBehaviour
     {
 #if UNITY_EDITOR
@@ -18,19 +17,16 @@ namespace Path2D.CustomNodes {
         private NodeNetworkAgent _nodeNetworkAgent;
         [SerializeField][HideInInspector]
         private float _spacing;
-        [SerializeField][HideInInspector]
-        protected BoxCollider2D BoxCollider2d;
-
 #endif
 
 
         public virtual List<Node> CreateCustomNodeNetwork(NodeNetwork nodeNetwork)
         {
             float spacing = nodeNetwork.Spacing;
-            int innerNetworkSizeX = Mathf.Max(Mathf.RoundToInt(((BoxCollider2d.size.x * transform.localScale.x)) / spacing), 1);
-            int innerNetworkSizeY = Mathf.Max(Mathf.RoundToInt(((BoxCollider2d.size.y * transform.localScale.y)) / spacing), 1);
+            int innerNetworkSizeX = Mathf.Max(Mathf.RoundToInt(((transform.localScale.x)) / spacing), 1);
+            int innerNetworkSizeY = Mathf.Max(Mathf.RoundToInt(((transform.localScale.y)) / spacing), 1);
 
-            Vector3 size = new Vector3((BoxCollider2d.size.x * transform.localScale.x), (BoxCollider2d.size.y * transform.localScale.y), 0);
+            Vector3 size = new Vector3((transform.localScale.x), (transform.localScale.y), 0);
             Vector3 worldBottomLeft = transform.position - (size/2);
             List<Node> innerNetworkNodes = new List<Node>();
             for (int x = 0; x <= innerNetworkSizeX + 0; x++)
@@ -51,12 +47,27 @@ namespace Path2D.CustomNodes {
             return innerNetworkNodes;
         }
 
+#if UNITY_EDITOR
         private void Reset()
         {
-#if UNITY_EDITOR
             _nodeNetworkAgent = FindObjectOfType<NodeNetwork>().Agent;
-#endif
-            BoxCollider2d = GetComponent<BoxCollider2D>();
+        }
+
+        public bool ShowGizmos = true;
+        public virtual void OnDrawGizmos()
+        {
+            if (!ShowGizmos)
+                return;
+
+            Vector3 size = new Vector3((transform.localScale.x), (transform.localScale.y), 0);
+            Vector3 position = transform.position;
+            Vector3 worldBottomLeft = position - (size / 2);
+            Vector3 worldBottomRight = worldBottomLeft + new Vector3(size.x, 0, 0);
+            Vector3 worldTopLeft = worldBottomLeft + new Vector3(0, size.y, 0);
+            Vector3 worldTopRight = worldBottomLeft + size;
+
+            Gizmos.DrawWireCube(position, size);
         }
     }
+#endif
 }

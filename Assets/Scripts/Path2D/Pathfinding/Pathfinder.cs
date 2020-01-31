@@ -27,7 +27,7 @@ namespace Path2D.Pathfinding
         // Starts finding a path. The callback calls a method with the resulting path waypoints and success state.
         public void StartFindPath(Vector3 startPosition, Vector3 targetPosition, LayerMask allowedTerrain, Action<Waypoint[], PathStatus> callback)
         {
-            StartCoroutine(FindPath(startPosition, targetPosition, allowedTerrain, callback, true));
+            StartCoroutine(FindPath(startPosition, targetPosition, allowedTerrain, callback, false));
         }
 
         private IEnumerator FindPath(Vector3 startPosition, Vector3 targetPosition, LayerMask allowedTerrain, Action<Waypoint[], PathStatus> callback, bool compareEnclosure)

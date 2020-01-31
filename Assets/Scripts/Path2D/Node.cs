@@ -99,14 +99,17 @@ namespace Path2D
             FindAndSetConnections(nodeNetwork, nodeNetwork.DefaultDepthValue);
         }
         // Adds a connection to the Node. Solves all updates and conditions related to the action.
-        public void AddConnection(Node connection)
+        public bool AddConnection(Node connection)
         {
             if (Connections.Contains(connection) || connection.LayerValue == NodeNetwork.UnwalkableLayer || LayerValue == NodeNetwork.UnwalkableLayer)
-                return;
+            {
+                return false;
+            }
 
             Connections.Add(connection);
             connection.UpdateEnclosureIndex(EnclosureIndex);
             UpdateEnclosureIndex(connection.EnclosureIndex);
+            return true;
         }
         // Updates the EnclosureIndex if the new index is higher. Recursive to spread it through the entire NodeNetwork.
         public void UpdateEnclosureIndex(int index)

@@ -17,6 +17,8 @@ public class Unit : MonoBehaviour
     Waypoint[] _path;
     int _targetIndex;
 
+    private int _actionIndex;
+
     [SerializeField]
     private PathRequester _pathRequester;
     private IEnumerator _pathCoroutine;
@@ -61,6 +63,7 @@ public class Unit : MonoBehaviour
         for (_targetIndex = 0; _targetIndex < length; _targetIndex++)
         {
             Waypoint currentWaypoint = _path[_targetIndex];
+            _actionIndex = currentWaypoint.LayerValue;
             Vector3 newPosition = currentWaypoint.Position;
             if (transform.position.z > newPosition.z)
                 transform.position = new Vector3(transform.position.x, transform.position.y, currentWaypoint.Position.z);
