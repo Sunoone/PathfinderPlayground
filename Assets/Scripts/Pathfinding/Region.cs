@@ -7,163 +7,270 @@ using Pathfinding.Collision;
 
 namespace Pathfinding
 {
-    // Region is a macro space of nodes. It allows for single region replacements.
-    // Nested...? 
+    [System.Serializable]
     public class Region
     {
         public LayerMask Unwalkable;
-
-        // If any dynamic object is in this region, it will be dynamic.
-        private bool _static = false;
-
         // SectionIds share the same value if the regions can access each other. It prevents searching path's which are not connected in any way.
         public int EnclosureId;
 
-        private PathNetwork _pathingNetwork;
+        private PathNetwork _pathNetwork;
         public Vector3 WorldPosition { get; private set; }
-        private Vector3 _regionSize;
-        private Vector3 _gridSpacing;
+        private float _gridSpacing;
 
-        public Region[] NeighbouringRegions;
         public List<Node> Nodes = new List<Node>();
-        private List<Vector3> _rayOrigins;
-        private int width;
-        private int height;
-        private int depth;
+        public Vector3[] Extremes;
+        private int _regionIndex;
 
-        public Region(PathNetwork pathingNetwork, Vector3 worldPosition, Vector3 regionSize, Vector3 gridSpacing, PathCollider[] colliders)
+        public Region(PathNetwork pathNetwork, Vector3 worldPosition, Vector3 regionSize, float gridSpacing, PathAgent pathAgent)
         {
-#if UNITY_EDITOR
-            if (regionSize.x <= 0 || regionSize.y <= 0)
-                throw new Exception("RegionSize too small.");
-            if (gridSpacing.x <= 0 || gridSpacing.y <= 0)
-                throw new Exception("GridSpacing too small.");
-#endif
-            _pathingNetwork = pathingNetwork;
+            _pathNetwork = pathNetwork;
             WorldPosition = worldPosition;
-            _regionSize = regionSize;
             _gridSpacing = gridSpacing;
-            CalculateRayPositions();
-            GenerateNodes(colliders);
-        }   
-
-        // 1 corner inside
-        // 1 edge inside
-        // Envelop
+            Extremes = _pathNetwork.GetExtremes(WorldPosition, regionSize);
+            GenerateNodes(pathAgent, -Vector3.forward);
+        }     
         
-        public Node GetNodeForGridSpace(int x, int y)
+        //@TODO: Support region up.
+        //@TODO: Support 6 directions.
+        public void GenerateNodes(PathAgent pathAgent, Vector3 nodeUp)
         {
-            if (x > width || x < 0 || y > height)
-                throw new System.IndexOutOfRangeException();
-            return Nodes[((y > 0) ? (y - 1) * width : 0) + x];
-        }
-
-        private void CalculateRayPositions()
-        {
-            width = Mathf.Max(Mathf.RoundToInt(_regionSize.x / _gridSpacing.x), 1);
-            height = Mathf.Max(Mathf.RoundToInt(_regionSize.y / _gridSpacing.y), 1);
-            depth = Mathf.Max(Mathf.RoundToInt(_regionSize.z / _gridSpacing.z), 1);
-
-            Debug.Log(width + ", " + height);
-            _rayOrigins = new List<Vector3>();
-            Vector3 halfRegionSize = _regionSize / 2;
-            Vector3 halfGridSpacingSize = _gridSpacing / 2;
-            Vector3 topRight = WorldPosition + halfRegionSize;
-            Vector3 bottomLeft = WorldPosition - halfRegionSize + halfGridSpacingSize;
-
-            Vector3 rayPosition = topRight;
-            float z = topRight.z;
-            for (int x = 0; x < width; x++)
-            {              
-                rayPosition.x = bottomLeft.x + (x * _gridSpacing.x);
-                for (int y = 0; y < height; y++)
+            Vector3 rayPosition = Extremes[0];
+            Vector3 endPosition = Extremes[1];
+            // Other regions do not know of the distribution. Therefore regions should perhaps be scaled to the spacing.
+            // Regions that go out of boundaries should still spawn and solve what they can within boundaries.
+            for (; rayPosition.x <= endPosition.x; rayPosition.x += _gridSpacing)
+            {           
+                rayPosition.y = Extremes[0].y;
+                for (int rowCount = 0; rayPosition.y <= endPosition.y; rayPosition.y += _gridSpacing, rowCount++)
                 {
-                    rayPosition.y = bottomLeft.y + (y * _gridSpacing.y);
-                    _rayOrigins.Add(rayPosition);
+                    Vector3 rayOrigin = rayPosition;
+
+                    // Shoves the entire row by half a spacing to form a diamond pattern. 
+                    if (rowCount % 2 == 0)
+                        rayOrigin.x += (_gridSpacing / 2);
+
+                    Collider2D[] colliders = Physics2D.OverlapCircleAll(rayOrigin, pathAgent.Radius);
+                    //RaycastHit2D[] colliders = Physics2D.RaycastAll(rayOrigin, Vector3.forward, pathAgent.Height);
+                    if (colliders.Length == 0)
+                        continue;
+
+                    Debug.Log(colliders.Length);
+
+                    int priorityLayer = int.MaxValue;
+                    Collider2D priorityCollider = null;
+
+                    foreach (var collider in colliders)
+                    {
+                        rayOrigin.z = collider.transform.position.z;
+                        if (!collider.bounds.Contains(rayOrigin))
+                            continue;
+
+                        int colliderLayer = collider.gameObject.layer;
+                        if (colliderLayer == PathNetwork.UnwalkableLayer || colliderLayer == PathNetwork.CustomLayer)
+                        {
+                            priorityLayer = colliderLayer;
+                            priorityCollider = collider;
+                            break;
+                        }
+                        if (colliderLayer < priorityLayer)
+                        {
+                            priorityLayer = colliderLayer;
+                            priorityCollider = collider;               
+                        }
+                    }
+
+                    if (priorityCollider == null)
+                        continue;
+
+                    switch (priorityLayer)
+                    {
+                        case PathNetwork.CustomLayer:
+                            Debug.Log("Custom");
+                            colliders = QuickSortByHeight(colliders);                  
+                            int length = colliders.Length - 2;
+                            for (int i = 0; i <= length; i++)
+                            {
+                                PathCollider pathCollider = colliders[i].transform.GetComponent<PathCollider>();
+                                if (pathCollider != null)
+                                {                                
+                                    if (pathCollider.IsStatic)
+                                        continue;
+
+                                    Collider2D collider = colliders[i + 1];
+                                    priorityLayer = collider.transform.gameObject.layer;
+                                    if (PathNetwork.UnwalkableLayer == priorityLayer)
+                                        break;
+
+                                    // When you click it, the custom node should still be returned because of the pathCollider's collider.
+                                    Debug.Log("CHECK");
+                                    Node node = CreateNode(rayOrigin, collider, collider.transform.gameObject.layer, nodeUp);
+                                    pathCollider.OverlappedNodes.Add(node);
+                                    break;
+                                }
+                            }
+                            break;
+                        case PathNetwork.UnwalkableLayer:
+                            Debug.Log("Break.");
+                            break;
+                        default:
+                            Debug.Log("Normal");
+                            CreateNode(rayOrigin, priorityCollider, priorityLayer, nodeUp);
+                            break;
+                    }
                 }
             }
         }
 
-        private Vector3 WorldToGridPosition(Vector3 worldPosition)
+        private Collider2D[] QuickSortByHeight(Collider2D[] array)
         {
-            return Vector3.zero;
+
+            int left = 0;
+            int right = array.Length - 1;
+
+            Quicksort(array, left, right);
+            for (int i = 0; i < array.Length; i++)
+            {
+                Debug.Log("Element " + i.ToString() + ": " + array[i].transform.position.z);
+            }
+            return array;
         }
+        private Collider2D[] Quicksort(Collider2D[] array, int left, int right)
+        {
+            if (left > right || left < 0 || right < 0) return null;
+
+            int index = Partition(array, left, right);
+            if (index != -1)
+            {
+                Quicksort(array, left, index - 1);
+                Quicksort(array, index + 1, right);
+            }
+            return array;
+        }
+        private int Partition(Collider2D[] array, int left, int right)
+        {
+            if (left > right) return -1;
+
+            int end = left;
+
+            Collider2D pivot = array[right];    // choose last one to pivot, easy to code
+            for (int i = left; i < right; i++)
+            {
+                if (array[i].transform.position.z < pivot.transform.position.z)
+                {
+                    Swap(array, i, end);
+                    end++;
+                }
+            }
+            Swap(array, end, right);
+            return end;
+        }
+        public void Swap(Collider2D[] array, int indexA, int indexB)
+        {
+            Collider2D temp = array[indexA];
+            array[indexA] = array[indexB];
+            array[indexB] = temp;
+            
+        }
+
+        // I do not like the jumping.
+        private Node CreateNode(Vector3 circleOverlapPoint, Collider2D collider,  int layer, Vector3 nodeUp)
+        {
+            Vector3 worldPosition = circleOverlapPoint;
+            worldPosition.z = collider.transform.position.z;
+            Vector3Int networkPosition = _pathNetwork.GetNetworkPositionFromWorldPosition(worldPosition);
+            Node node = _pathNetwork.CreateNode(layer, networkPosition, worldPosition, nodeUp);
+            Nodes.Add(node);
+            return node;
+        }
+
+        // Updates can be done without rays. Rays are only necessary to set the nodes' z value initially.
 
         // What is a beautifull way to assign neighbours...
-        private void GenerateNodes(PathCollider[] colliders)
+        private void GenerateNodes(PathCollider[] pathColliders)
         {
-
-
-
-
-            int length = _rayOrigins.Count;
+            int length = pathColliders.Length;
             for (int i = 0; i < length; i++)
             {
-                if (i == 0 || ((i + 1) % width == 0) || ((i + 1) % width == width -1) || i == length - 1)
-                {
-                    // The borders. Irrelevant for now. But eventually need links to each other.
-                }
-                RaycastHit2D[] hits = Physics2D.RaycastAll(_rayOrigins[i], Vector3.forward, _regionSize.z, _collisionMask);
-                foreach (var hit in hits)
-                {
-                    int layer = hit.transform.gameObject.layer;
+                PathCollider pathCollider = pathColliders[i];
+                int layer = pathCollider.gameObject.layer;
+                Vector3Int networkPosition = _pathNetwork.GetNetworkPositionFromWorldPosition(pathCollider.transform.position);
+                Node node = _pathNetwork.CreateNode(layer, networkPosition, pathCollider.transform.position, Vector3.forward);
+                _pathNetwork.UpdateNode(node);
+                Nodes.Add(node);
+            }
+        }
 
-                    /*CustomNode customNode = hit.transform.GetComponent<CustomNode>();
-                    if (customNode != null)
-                    {
-                        throw new NotImplementedException();
-                    }*/
-                    int penalty = 0;
-                    Vector3Int networkPosition =_pathingNetwork.GetNetworkPositionFromWorldPosition(hit.point);
-                    Node node = new Node(layer, networkPosition, hit.point, penalty);
-                    _pathingNetwork.UpdateNode(node);                   
-                    Nodes.Add(node);
+        // Every project should setup the correct layer priorities.
+        private Node CreateNode(Vector3 worldPoint, int x, int y, int z = 0)
+        {
+            RaycastHit2D[] hits = Physics2D.RaycastAll(worldPoint, Vector3.forward);
+           
+            int layer = 0;
+            int lowestLayer = int.MaxValue;
+            foreach (var hit in hits)
+            {
+                int objectLayer = hit.transform.gameObject.layer;
+                switch (objectLayer)
+                {
+                    case PathNetwork.CustomLayer:
+                        
+                        // Custom stuff here. Get the component and execute logic..?
+                        break;
+                    default:
+                        if (objectLayer < lowestLayer)
+                            layer = lowestLayer = objectLayer;
+                        break;
                 }
             }
-            
-        }      
+
+            int movementPenalty = 0;
+            //if (_walkableRegionsDictionary.ContainsKey(layer))
+           //     movementPenalty = _walkableRegionsDictionary[layer];
+            return new Node(layer, new Vector3Int(x, y, z),  worldPoint, -Vector3.forward, movementPenalty);
+        }
+
+        private List<PathCollider> _pathColliders;
+
+
+        // With the use of the overlap, the other stuff can be rebuild.
+        private bool TryGetPathColliderOverlap(PathCollider pathCollider, out Vector3[] overlapExtremes)
+        {
+            Vector3[] colliderExtremes = pathCollider.Extremes;
+            Vector3[] pathNetworkExtremes = Extremes;
+
+            if (colliderExtremes[1].x < pathNetworkExtremes[0].x || colliderExtremes[0].x > pathNetworkExtremes[1].x ||
+                colliderExtremes[1].y < pathNetworkExtremes[0].y && colliderExtremes[0].y > pathNetworkExtremes[1].y ||
+                colliderExtremes[1].z < pathNetworkExtremes[0].z || colliderExtremes[0].z > pathNetworkExtremes[1].z)
+            {
+                overlapExtremes = null;
+                return false;
+            }
+
+            overlapExtremes = new Vector3[2];
+            overlapExtremes[0].x = (colliderExtremes[0].x < pathNetworkExtremes[0].x) ? pathNetworkExtremes[0].x : colliderExtremes[0].x;
+            overlapExtremes[0].y = (colliderExtremes[0].y < pathNetworkExtremes[0].y) ? pathNetworkExtremes[0].y : colliderExtremes[0].y;
+            overlapExtremes[0].z = colliderExtremes[0].z;
+
+            overlapExtremes[1].x = (colliderExtremes[1].x > pathNetworkExtremes[1].x) ? pathNetworkExtremes[1].x : colliderExtremes[1].x;
+            overlapExtremes[1].y = (colliderExtremes[1].y > pathNetworkExtremes[1].y) ? pathNetworkExtremes[1].y : colliderExtremes[1].y;
+            overlapExtremes[1].z = colliderExtremes[1].z;
+            return true;
+        }
 
         public void SetNeighboursForNodes()
         {
             foreach (var node in Nodes)
             {
-                node.SetAvailableNeighbours(_pathingNetwork);
+                node.SetAvailableNeighbours(_pathNetwork);
             }
-        }
-
-        // Rebuilding everytime in its entirety. As every node connection needs to be updated.
-        public void UpdateRegion() // Add support for pathfinding agents.  
-        {
-            if (_static)
-                return;
-
-            UpdateNodes();
         }
 
         private void UpdateNodes(PathCollider[] dynamicColliders)
         {
-            int length = _rayOrigins.Count;
-            for (int i = 0; i < length; i++)
+            for (int i = 0; i < dynamicColliders.Length; i++)
             {
-                RaycastHit2D[] hits = Physics2D.RaycastAll(_rayOrigins[i], Vector3.forward, _regionSize.z, _collisionMask);
-                foreach (var hit in hits)
-                {
-                    Vector3Int gridPosition = _pathingNetwork.GetNetworkPositionFromWorldPosition(hit.point);
-                 
-                    int layer = hit.transform.gameObject.layer;
-                    int penalty = 0;
 
-                    if (_pathingNetwork.TryGetNodeForNodePosition(gridPosition, out Node node))
-                    {                                
-                        node.UpdateNodeLayer(layer, penalty);
-                    }
-                    else
-                    {
-                        node = new Node(layer, gridPosition, hit.point, penalty);
-                        _pathingNetwork.UpdateNode(node);
-                        Nodes.Add(node);
-                    }
-                }
             }
         }
 

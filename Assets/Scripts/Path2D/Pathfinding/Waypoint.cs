@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Grid2d.Pathfinding
+namespace Path2D.Pathfinding
 {
     public struct Waypoint
     {

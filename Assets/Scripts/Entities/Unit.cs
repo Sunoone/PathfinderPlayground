@@ -1,11 +1,15 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Grid2d.Pathfinding;
+using Path2D.Pathfinding;
 
 public class Unit : MonoBehaviour
 {
-    public LayerMask WalkableTerrain;
+#pragma warning disable 649
+    [SerializeField]
+    private NodeNetworkAgent _nodeNetworkAgent;
+#pragma warning restore 649
+    public LayerMask AllowedTerrainMask;
 
     MeshRenderer _meshRenderer;
     public Transform Target;
@@ -33,9 +37,8 @@ public class Unit : MonoBehaviour
         if (Input.GetMouseButtonDown(0))
         {
             // Needs to accurately get the raytrace depth.
-            Vector3 newPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            newPosition.z = transform.position.z;
-            _pathRequester.RequestPath(transform.position, newPosition, WalkableTerrain, PathFound);
+            Vector3 rayPoint = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            _pathRequester.RequestPath(transform.position, rayPoint, AllowedTerrainMask, PathFound);
         }
     }
 
@@ -58,12 +61,19 @@ public class Unit : MonoBehaviour
         for (_targetIndex = 0; _targetIndex < length; _targetIndex++)
         {
             Waypoint currentWaypoint = _path[_targetIndex];
-            while (transform.position != currentWaypoint.Position)
-            {
-                transform.position = Vector3.MoveTowards(transform.position, currentWaypoint.Position, Speed * Time.deltaTime);
+            Vector3 newPosition = currentWaypoint.Position;
+            if (transform.position.z > newPosition.z)
+                transform.position = new Vector3(transform.position.x, transform.position.y, currentWaypoint.Position.z);
+            else
+                newPosition.z = transform.position.z;
+            while (transform.position != newPosition)
+            {           
+                transform.position = Vector3.MoveTowards(transform.position, newPosition, Speed * Time.deltaTime);
                 yield return null;
             }
+            transform.position = currentWaypoint.Position;
         }
+       
     }
 
     public void OnDrawGizmos()

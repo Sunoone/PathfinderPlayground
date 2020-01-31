@@ -38,12 +38,12 @@ namespace Algorithms
             {
                 if (array[i].CompareTo(pivot) <= 0)
                 {
-                    Swap(array, i, end);
+                    array.Swap(i, end);
                     end++;
                 }
             }
 
-            Swap(array, end, right);
+            array.Swap(end, right);
 
             return end;
         }

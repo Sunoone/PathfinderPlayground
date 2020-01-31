@@ -90,3 +90,24 @@ namespace Algorithms
     }
 }
 
+
+[RequireComponent(typeof(BoxCollider))]
+public class Foo : MonoBehaviour
+{
+    [SerializeField]
+    [HideInInspector]
+    private GameObject _object;
+
+    [SerializeField]
+    [HideInInspector]
+    private BoxCollider _boxCollider;
+    public BoxCollider Box;
+
+#if UNITY_EDITOR
+    private void Reset()
+    {
+        _object = GameObject.FindObjectOfType<GameObject>();
+        _boxCollider = GetComponent<BoxCollider>();
+    }
+#endif
+}
