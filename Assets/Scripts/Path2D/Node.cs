@@ -25,7 +25,7 @@ namespace Path2D
 
         public virtual Node Previous { get; set; } // Used to retrace the path.
 
-        public bool CanSimplify { get; protected set; }
+        public bool CanSimplify { get; set; }
         public int HeapIndex { get; set; }
 
         public Node(int layerValue, int movementPenalty, Vector3Int networkPosition, Vector3 worldPosition)

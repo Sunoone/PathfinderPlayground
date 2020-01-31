@@ -34,12 +34,13 @@ namespace Path2D.CustomNodes {
                 for (int y = 0; y <= innerNetworkSizeY; y++)
                 {
                     Vector3 worldPosition = worldBottomLeft + new Vector3(x * spacing, y * spacing, nodeNetwork.transform.position.z);
-                    Node node = nodeNetwork.GetNodeFromWorldPosition(worldPosition, int.MaxValue);
+                    Node node = nodeNetwork.GetNodeFromWorldPosition(worldPosition, int.MaxValue, true);
                     if (node.LayerValue == NodeNetwork.UnwalkableLayer)
                         continue;
 
                     if (!innerNetworkNodes.Contains(node) && node.WorldPosition.z >= transform.position.z)
                     {
+                        nodeNetwork.MofidyNode(node, gameObject.layer);
                         innerNetworkNodes.Add(node);
                     }
                 }

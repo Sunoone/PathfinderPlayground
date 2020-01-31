@@ -29,6 +29,7 @@ namespace Path2D.CustomNodes
             // Create the first node of the linearPathNetwork.
             NodeInfo nodeInfo = nodeInfoArray[0];
             Node currentNode = nodeNetwork.CreateCustomNode(nodeInfo.Layer, nodeInfo.WorldPosition);
+
             List<Node> linearPathNetwork = new List<Node>();
             linearPathNetwork.Add(currentNode);
 
@@ -51,7 +52,6 @@ namespace Path2D.CustomNodes
             }
 
             ConnectEndToNetwork(currentNode, nodeNetwork);
-
 
             return linearPathNetwork;
         }

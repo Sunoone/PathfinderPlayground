@@ -40,6 +40,8 @@ public class Unit : MonoBehaviour
         {
             // Needs to accurately get the raytrace depth.
             Vector3 rayPoint = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            RaycastHit2D hit = Physics2D.Raycast(rayPoint, Vector3.forward);
+            rayPoint.z = hit.collider.transform.position.z;
             _pathRequester.RequestPath(transform.position, rayPoint, AllowedTerrainMask, PathFound);
         }
     }
@@ -63,7 +65,20 @@ public class Unit : MonoBehaviour
         for (_targetIndex = 0; _targetIndex < length; _targetIndex++)
         {
             Waypoint currentWaypoint = _path[_targetIndex];
-            _actionIndex = currentWaypoint.LayerValue;
+
+            switch (_actionIndex)
+            {
+                case 9:
+                    Speed = 1;
+                    break;
+                case 10:
+                    Speed = 1;
+                    break;
+                default:
+                    Speed = 5;
+                    break;
+            }
+
             Vector3 newPosition = currentWaypoint.Position;
             if (transform.position.z > newPosition.z)
                 transform.position = new Vector3(transform.position.x, transform.position.y, currentWaypoint.Position.z);
@@ -74,9 +89,16 @@ public class Unit : MonoBehaviour
                 transform.position = Vector3.MoveTowards(transform.position, newPosition, Speed * Time.deltaTime);
                 yield return null;
             }
+
+            _actionIndex = currentWaypoint.LayerValue;
+            Debug.Log(_actionIndex);
             transform.position = currentWaypoint.Position;
         }
-       
+
+    }
+    private void SolveClimbingCheckPoint()
+    {
+
     }
 
     public void OnDrawGizmos()

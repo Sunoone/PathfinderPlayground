@@ -35,10 +35,13 @@ namespace Path2D.Pathfinding
             Waypoint[] waypoints = new Waypoint[0];
             PathStatus pathStatus = PathStatus.Fail;
 
-            Node startNode = _nodeNetwork.GetNodeFromWorldPosition(startPosition, allowedTerrain);
-            Node targetNode = _nodeNetwork.GetNodeFromWorldPosition(targetPosition, int.MaxValue);
+            Node startNode = _nodeNetwork.GetNodeFromWorldPosition(startPosition, allowedTerrain, false);
+            Node targetNode = _nodeNetwork.GetNodeFromWorldPosition(targetPosition, int.MaxValue, true);
 
-            if (startNode == null ||
+            if (startNode == null)
+                startNode = _nodeNetwork.GetShiftedNodeFromWorldPosition(startPosition, allowedTerrain, false);
+
+            if (startNode == null || targetNode == null || 
                 compareEnclosure && targetNode.LayerValue != NodeNetwork.UnwalkableLayer && startNode.EnclosureIndex != targetNode.EnclosureIndex)
             {
                 callback(waypoints, PathStatus.Fail);
@@ -139,9 +142,18 @@ namespace Path2D.Pathfinding
             int length = path.Count;
             for (int i = 1; i < length; i++)
             {
+                ;
                 Vector2 directionNew = new Vector2(path[i - 1].NetworkPosition.x - path[i].NetworkPosition.x, path[i - 1].NetworkPosition.y - path[i].NetworkPosition.y);
-                if (!path[i].CanSimplify || directionNew != directionOld || path[i - 1].LayerValue != path[i].LayerValue || path[i-1].WorldPosition.z != path[i].WorldPosition.z)
+                if (!path[i].CanSimplify || directionNew != directionOld || path[i-1].WorldPosition.z != path[i].WorldPosition.z || path[i - 1].LayerValue != path[i].LayerValue)
                 {
+                    if (path[i - 1].LayerValue != path[i].LayerValue)   
+                        waypoints.Add(new Waypoint(path[i].WorldPosition, path[i - 1].LayerValue));
+                    waypoints.Add(new Waypoint(path[i].WorldPosition, path[i].LayerValue));
+                } 
+                else if (path[i - 1].LayerValue != path[i].LayerValue)
+                {
+                    
+                    waypoints.Add(new Waypoint(path[i].WorldPosition, path[i - 1].LayerValue));
                     waypoints.Add(new Waypoint(path[i].WorldPosition, path[i].LayerValue));
                 }
                 directionOld = directionNew;

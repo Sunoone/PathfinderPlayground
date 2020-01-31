@@ -70,10 +70,20 @@ namespace Path2D
             return networkPosition;
         }
         // Gets the node from the worldPosition. Will check all depths till DefaultDepthValue. Filters through a layermask.
-        public Node GetNodeFromWorldPosition(Vector3 worldPosition, LayerMask allowedTerrain)
+        public Node GetNodeFromWorldPosition(Vector3 worldPosition, LayerMask allowedTerrain, bool searchDepth)
         {
             Vector3Int networkPosition = GetNetworkPositionFromWorldPosition(worldPosition);
-            return GetNodeForNetworkPosition(networkPosition, allowedTerrain);
+            return GetNodeForNetworkPosition(networkPosition, allowedTerrain, searchDepth);
+        }
+        // Rounding innaccuraries can create a rare issue in which x positions get shifted by 1. This is a temporary solution.
+        public Node GetShiftedNodeFromWorldPosition(Vector3 worldPosition, LayerMask allowedTerrain, bool searchDepth)
+        {
+            worldPosition.x += Spacing;
+            Node node = GetNodeFromWorldPosition(worldPosition, allowedTerrain, searchDepth);
+            if (node != null)
+                return node;
+            worldPosition.x -= Spacing * 2;
+            return GetNodeFromWorldPosition(worldPosition, allowedTerrain, searchDepth);
         }
         // Heavy method that gets the closest node to the worldPosition. Filters through a LayerMask
         public Node FindClosestNode(Vector3 worldPosition, LayerMask allowedTerrain)
@@ -108,10 +118,10 @@ namespace Path2D
         {
             Vector3Int networkPosition = node.NetworkPosition;
             networkPosition.z++;
-            return GetNodeForNetworkPosition(networkPosition, allowedTerrain);
+            return GetNodeForNetworkPosition(networkPosition, allowedTerrain, true);
         }
         // Checks every DepthValue from networkPosition. Returns the first found Node. Filters through LayerMask.
-        private Node GetNodeForNetworkPosition(Vector3Int networkPosition, LayerMask allowedTerrain)
+        private Node GetNodeForNetworkPosition(Vector3Int networkPosition, LayerMask allowedTerrain, bool searchDepth)
         {
             for (; networkPosition.z <= DefaultDepthValue; networkPosition.z++)
             {
@@ -121,6 +131,8 @@ namespace Path2D
                     if (allowedTerrain == (allowedTerrain | 1 << node.LayerValue))
                         return node;
                 }
+                if (!searchDepth)
+                    break;
             }
             return null;
         }
@@ -216,7 +228,7 @@ namespace Path2D
             return node;
         }
         // Will only modify an existing Node.
-        private void MofidyNode(Node node, int layer)
+        public void MofidyNode(Node node, int layer)
         {
             _agent.WalkableTerrainTypesDictionary.TryGetValue(layer, out int movementPenalty);
             node.Modify(layer, movementPenalty);
