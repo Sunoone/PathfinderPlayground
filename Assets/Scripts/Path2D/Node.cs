@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Algorithms;
 
-namespace Path2D
+namespace Path2d
 {
     public class Node : IHeapItem<Node>
     {

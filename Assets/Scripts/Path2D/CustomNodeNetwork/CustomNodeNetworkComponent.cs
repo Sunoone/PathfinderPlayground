@@ -1,12 +1,12 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Path2D.Pathfinding;
+using Path2d.Pathfinding;
 using CustomAttributes;
 
-namespace Path2D.CustomNodes {
+namespace Path2d.CustomNodeNetwork {
 
-    public abstract class CustomNodeComponent : MonoBehaviour
+    public abstract class CustomNodeNetworkComponent : MonoBehaviour
     {
 #if UNITY_EDITOR
 #pragma warning disable 414

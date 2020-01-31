@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 
-namespace Path2D.Pathfinding
+namespace Path2d.Pathfinding
 {
     public class PathRequester : MonoBehaviour
     {

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using CustomAttributes;
 
-namespace Path2D
+namespace Path2d
 {
     [System.Serializable]
     public class TerrainType

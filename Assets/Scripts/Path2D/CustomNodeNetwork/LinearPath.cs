@@ -1,9 +1,10 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-namespace Path2D.CustomNodes
+
+namespace Path2d.CustomNodeNetwork
 {
-    public class LinearPath : CustomNodeComponent
+    public class LinearPath : CustomNodeNetworkComponent
     {
         private enum ConnectionType
         {

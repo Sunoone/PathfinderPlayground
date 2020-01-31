@@ -5,7 +5,7 @@ using UnityEngine.AI;
 using System;
 using Algorithms;
 
-namespace Path2D.Pathfinding
+namespace Path2d.Pathfinding
 {
     public enum PathStatus
     {

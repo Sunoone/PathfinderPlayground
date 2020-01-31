@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Path2D;
+using Path2d;
 using Persistance;
 using CustomAttributes;
 

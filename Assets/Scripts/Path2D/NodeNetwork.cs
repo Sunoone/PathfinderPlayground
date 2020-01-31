@@ -1,10 +1,10 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Path2D.CustomNodes;
+using Path2d.CustomNodeNetwork;
 using CustomAttributes;
 
-namespace Path2D
+namespace Path2d
 {
     //@TODO: Remove grid and replace with neihgbouring node hashes/arrays
     public class NodeNetwork : MonoBehaviour
@@ -237,7 +237,7 @@ namespace Path2D
         // CustomNodeComponents within the scene will be gathered and activated. This creates custom customized networks.
         private void SolveCustomNodes(List<Node> nodesInNetwork)
         {
-            CustomNodeComponent[] customNodeComponents = FindObjectsOfType<CustomNodeComponent>();
+            CustomNodeNetworkComponent[] customNodeComponents = FindObjectsOfType<CustomNodeNetworkComponent>();
             foreach (var customNodeComponent in customNodeComponents)
             {
                 List<Node> newNodes = customNodeComponent.CreateCustomNodeNetwork(this);
