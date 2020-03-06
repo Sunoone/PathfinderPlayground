@@ -39,7 +39,10 @@ namespace Path2d
             Connections = new List<Node>();
         }
 
-        // Creates a node with maximum G and H costs which can be used to compare.
+        /// <summary>
+        /// Creates a node with maximum G and H costs which can be used to compare.
+        /// </summary>
+        /// <returns></returns>
         public static Node CreateCompareNode()
         {
             Node node = new Node(0, 0, Vector3Int.zero, Vector3.zero);
@@ -47,6 +50,11 @@ namespace Path2d
             return node;
         }
 
+        /// <summary>
+        /// Modifies the node's pathfinding properties
+        /// </summary>
+        /// <param name="layerValue">New layer value</param>
+        /// <param name="movementPenalty">New movement panelty</param>
         public void Modify(int layerValue, int movementPenalty)
         {
             LayerValue = layerValue;
@@ -57,18 +65,31 @@ namespace Path2d
         {
             return CreateHashCode(NetworkPosition);
         }
+
+        /// <summary>
+        /// Resets the HCost and GCost of the node to 0.
+        /// </summary>
         public void Refresh()
         {
             UpdateCosts(0, 0);
         }
+        /// <summary>
+        /// Updates the HCost and GCost of the node.
+        /// </summary>
+        /// <param name="hCost">New HCost</param>
+        /// <param name="gCost">New GCost</param>
         public void UpdateCosts(int hCost, int gCost)
         {
             HCost = hCost;
             GCost = gCost;
         }
 
-        // Connects to neighbouring nodes to this node.
-        public void FindAndSetConnections(NodeNetwork nodeNetwork, int depthValue)
+        /// <summary>
+        /// Connects to neighbouring nodes to this node.
+        /// </summary>
+        /// <param name="nodeNetwork">NodeNetwork which will be modified</param>
+        /// <param name="depthValue">Manual depth value</param>
+        public void FindAndSetConnections(NodeNetwork nodeNetwork)
         {
             if (LayerValue == NodeNetwork.UnwalkableLayer)
                 return;
@@ -81,7 +102,7 @@ namespace Path2d
                         continue;
 
                     // It will only check neighbours in 2 dimensions. The third dimension has to be manually connected.
-                    Vector3Int networkPosition = new Vector3Int(NetworkPosition.x + x, NetworkPosition.y + y, depthValue);
+                    Vector3Int networkPosition = new Vector3Int(NetworkPosition.x + x, NetworkPosition.y + y, NetworkPosition.z);
                     int hash = CreateHashCode(networkPosition);
                     if (nodeNetwork.TryGetNodeFromHash(hash, out Node connection))
                         AddConnection(connection);               
@@ -93,12 +114,12 @@ namespace Path2d
                 }
             }
         }
-        // Connects to neighouring nodes to this node, while using the NodeNetwork's default DepthValue.
-        public void FindAndSetConnections(NodeNetwork nodeNetwork)
-        {
-            FindAndSetConnections(nodeNetwork, nodeNetwork.DefaultDepthValue);
-        }
-        // Adds a connection to the Node. Solves all updates and conditions related to the action.
+
+        /// <summary>
+        /// Adds a connection to the Node. Solves all updates and conditions related to the action.
+        /// </summary>
+        /// <param name="connection">Node to connect to</param>
+        /// <returns></returns>
         public bool AddConnection(Node connection)
         {
             if (Connections.Contains(connection) || connection.LayerValue == NodeNetwork.UnwalkableLayer || LayerValue == NodeNetwork.UnwalkableLayer)
@@ -111,22 +132,36 @@ namespace Path2d
             UpdateEnclosureIndex(connection.EnclosureIndex);
             return true;
         }
-        // Updates the EnclosureIndex if the new index is higher. Recursive to spread it through the entire NodeNetwork.
-        public void UpdateEnclosureIndex(int index)
+
+        /// <summary>
+        /// // Updates the EnclosureIndex if the new index is higher. Recursive to spread it through the entire NodeNetwork.
+        /// </summary>
+        /// <param name="enclosureIndex">New enclosure index</param>
+        public void UpdateEnclosureIndex(int enclosureIndex)
         {
-            if (EnclosureIndex >= index)
+            if (EnclosureIndex >= enclosureIndex)
                 return;
 
-            EnclosureIndex = index;
+            EnclosureIndex = enclosureIndex;
             foreach (var connection in Connections)
-                connection.UpdateEnclosureIndex(index);
+                connection.UpdateEnclosureIndex(enclosureIndex);
         }
 
+        /// <summary>
+        /// Creates a hashcode for all the necessary information of a node.
+        /// </summary>
+        /// <param name="networkPosition">Position from which to simulate the hashcode</param>
+        /// <returns></returns>
         public static int CreateHashCode(Vector3Int networkPosition)
         {
             return (networkPosition.x ^ (networkPosition.y) << 12) ^ (networkPosition.z << 24);
         }
 
+        /// <summary>
+        /// Compares two nodes their values. 
+        /// </summary>
+        /// <param name="other">Other node</param>
+        /// <returns></returns>
         public int CompareTo(Node other)
         {
             int compare = FCost.CompareTo(other.FCost);

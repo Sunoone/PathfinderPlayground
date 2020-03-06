@@ -13,11 +13,12 @@ public class Unit : MonoBehaviour
 
     MeshRenderer _meshRenderer;
     public Transform Target;
-    public float Speed = 50;
+    public float DefaultSpeed = 5;
+    private float _currentSpeed = 5;
     Waypoint[] _path;
     int _targetIndex;
 
-    private int _actionIndex;
+    private int _movementLayer;
 
     [SerializeField]
     private PathRequester _pathRequester;
@@ -30,7 +31,7 @@ public class Unit : MonoBehaviour
         if (_pathRequester == null)
             _pathRequester = FindObjectOfType<PathRequester>();
 
-        _meshRenderer = GetComponent<MeshRenderer>();
+        _meshRenderer = GetComponentInChildren<MeshRenderer>();
         _color = _meshRenderer.material.color;
     }
 
@@ -64,20 +65,13 @@ public class Unit : MonoBehaviour
         int length = _path.Length;
         for (_targetIndex = 0; _targetIndex < length; _targetIndex++)
         {
-            Waypoint currentWaypoint = _path[_targetIndex];
+            Waypoint currentWaypoint = _path[_targetIndex];     
+            
+            // This check ensures that the singular path ends its properties on the final node. This makes back and forth travel consistent.
+            if (_movementLayer == 9 && currentWaypoint.LayerValue != 9)
+                _movementLayer = currentWaypoint.LayerValue;
 
-            switch (_actionIndex)
-            {
-                case 9:
-                    Speed = 1;
-                    break;
-                case 10:
-                    Speed = 1;
-                    break;
-                default:
-                    Speed = 5;
-                    break;
-            }
+            _currentSpeed = (_movementLayer == 9) ? 1 : DefaultSpeed;
 
             Vector3 newPosition = currentWaypoint.Position;
             if (transform.position.z > newPosition.z)
@@ -86,12 +80,11 @@ public class Unit : MonoBehaviour
                 newPosition.z = transform.position.z;
             while (transform.position != newPosition)
             {           
-                transform.position = Vector3.MoveTowards(transform.position, newPosition, Speed * Time.deltaTime);
+                transform.position = Vector3.MoveTowards(transform.position, newPosition, _currentSpeed * Time.deltaTime);
                 yield return null;
             }
 
-            _actionIndex = currentWaypoint.LayerValue;
-            Debug.Log(_actionIndex);
+            _movementLayer = currentWaypoint.LayerValue;
             transform.position = currentWaypoint.Position;
         }
 

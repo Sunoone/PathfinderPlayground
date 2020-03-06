@@ -17,8 +17,10 @@ namespace Path2d.Pathfinding
     [RequireComponent(typeof(NodeNetwork))]
     public class Pathfinder : MonoBehaviour
     {
+#if UNITY_EDITOR
+        public bool ShowDebugTimer = true;
+#endif
         private NodeNetwork _nodeNetwork;
-        public int _currentCheckpointId = 0;
         private void Start()
         {
             _nodeNetwork = GetComponent<NodeNetwork>();
@@ -27,21 +29,29 @@ namespace Path2d.Pathfinding
         // Starts finding a path. The callback calls a method with the resulting path waypoints and success state.
         public void StartFindPath(Vector3 startPosition, Vector3 targetPosition, LayerMask allowedTerrain, Action<Waypoint[], PathStatus> callback)
         {
-            StartCoroutine(FindPath(startPosition, targetPosition, allowedTerrain, callback, false));
-        }
-
-        private IEnumerator FindPath(Vector3 startPosition, Vector3 targetPosition, LayerMask allowedTerrain, Action<Waypoint[], PathStatus> callback, bool compareEnclosure)
-        {      
-            Waypoint[] waypoints = new Waypoint[0];
-            PathStatus pathStatus = PathStatus.Fail;
-
-            Node startNode = _nodeNetwork.GetNodeFromWorldPosition(startPosition, allowedTerrain, false);
+            Node startNode = _nodeNetwork.GetNodeFromWorldPosition(startPosition, allowedTerrain, true);
             Node targetNode = _nodeNetwork.GetNodeFromWorldPosition(targetPosition, int.MaxValue, true);
 
             if (startNode == null)
                 startNode = _nodeNetwork.GetShiftedNodeFromWorldPosition(startPosition, allowedTerrain, false);
 
-            if (startNode == null || targetNode == null || 
+            StartFindPath(startNode, targetNode, allowedTerrain, callback);
+            //StartCoroutine(FindPath(startPosition, targetPosition, allowedTerrain, callback, false));
+        }
+        public void StartFindPath(Node startNode, Node targetNode, LayerMask allowedTerrain, Action<Waypoint[], PathStatus> callback)
+        {
+            StartCoroutine(FindPath(startNode, targetNode, allowedTerrain, callback, false));
+        }
+
+        private IEnumerator FindPath(Node startNode, Node targetNode, LayerMask allowedTerrain, Action<Waypoint[], PathStatus> callback, bool compareEnclosure)
+        {
+#if UNITY_EDITOR
+            System.Diagnostics.Stopwatch stopWatch = System.Diagnostics.Stopwatch.StartNew();
+#endif
+            Waypoint[] waypoints = new Waypoint[0];
+            PathStatus pathStatus = PathStatus.Fail;
+
+            if (startNode == null || targetNode == null || startNode.LayerValue == NodeNetwork.UnwalkableLayer || 
                 compareEnclosure && targetNode.LayerValue != NodeNetwork.UnwalkableLayer && startNode.EnclosureIndex != targetNode.EnclosureIndex)
             {
                 callback(waypoints, PathStatus.Fail);
@@ -73,7 +83,6 @@ namespace Path2d.Pathfinding
             if (pathStatus == PathStatus.Fail)
             {
                 targetNode = FindClosestNode(closedSet);
-                targetPosition = targetNode.WorldPosition;
                 pathStatus = PathStatus.Partial;
             }
             foreach (var node in closedSet)
@@ -86,6 +95,14 @@ namespace Path2d.Pathfinding
                 yield break;
             }
             callback(waypoints, pathStatus);
+
+#if UNITY_EDITOR
+            if (ShowDebugTimer)
+            {
+                stopWatch.Stop();
+                Debug.Log("Found path: " + stopWatch.ElapsedMilliseconds + " ms.");
+            }
+#endif
         }
 
         private void UpdateConnection(ref Heap<Node> openSet, ref HashSet<Node> closedSet, LayerMask allowedTerrain, Node targetNode, Node currentNode, Node connectedNode)
@@ -126,6 +143,8 @@ namespace Path2d.Pathfinding
             while (currentNode != startNode)
             {
                 path.Add(currentNode);
+                if (currentNode.Previous == null)
+                    Debug.LogError("nope.");
                 currentNode = currentNode.Previous;
             }
             if (path.Count == 0)
@@ -142,20 +161,19 @@ namespace Path2d.Pathfinding
             int length = path.Count;
             for (int i = 1; i < length; i++)
             {
-                ;
-                Vector2 directionNew = new Vector2(path[i - 1].NetworkPosition.x - path[i].NetworkPosition.x, path[i - 1].NetworkPosition.y - path[i].NetworkPosition.y);
-                if (!path[i].CanSimplify || directionNew != directionOld || path[i-1].WorldPosition.z != path[i].WorldPosition.z || path[i - 1].LayerValue != path[i].LayerValue)
+                Node previousNode = path[i - 1];
+                Node currentNode = path[i];
+
+                Vector2 directionNew = new Vector2(previousNode.NetworkPosition.x - currentNode.NetworkPosition.x, previousNode.NetworkPosition.y - currentNode.NetworkPosition.y);
+                if (previousNode.LayerValue != currentNode.LayerValue || previousNode.WorldPosition.z != currentNode.WorldPosition.z)
                 {
-                    if (path[i - 1].LayerValue != path[i].LayerValue)   
-                        waypoints.Add(new Waypoint(path[i].WorldPosition, path[i - 1].LayerValue));
-                    waypoints.Add(new Waypoint(path[i].WorldPosition, path[i].LayerValue));
-                } 
-                else if (path[i - 1].LayerValue != path[i].LayerValue)
-                {
-                    
-                    waypoints.Add(new Waypoint(path[i].WorldPosition, path[i - 1].LayerValue));
-                    waypoints.Add(new Waypoint(path[i].WorldPosition, path[i].LayerValue));
+                    waypoints.Add(new Waypoint(previousNode.WorldPosition, previousNode.LayerValue));
+                    waypoints.Add(new Waypoint(currentNode.WorldPosition, currentNode.LayerValue));
                 }
+                else if (!currentNode.CanSimplify || directionNew != directionOld)
+                {
+                    waypoints.Add(new Waypoint(currentNode.WorldPosition, currentNode.LayerValue));
+                }          
                 directionOld = directionNew;
             }
             Node lastNode = path[length - 1];

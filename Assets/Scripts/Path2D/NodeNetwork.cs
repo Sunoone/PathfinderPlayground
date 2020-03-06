@@ -59,16 +59,18 @@ namespace Path2d
         #region Get methods
         // Gets the network position from the world position.
         private Vector3Int GetNetworkPositionFromWorldPosition(Vector3 worldPosition)
-        {
+        { 
             float percentX = Mathf.Clamp01((worldPosition.x + _nodeNetworkSize.x / 2) / _nodeNetworkSize.x);
             float percentY = Mathf.Clamp01((worldPosition.y + _nodeNetworkSize.y / 2) / _nodeNetworkSize.y);
 
             Vector3Int networkPosition = Vector3Int.zero;
-            networkPosition.x = Mathf.Max(Mathf.RoundToInt((_gridSizeX - 1) * percentX), 0);
-            networkPosition.y = Mathf.Max(Mathf.RoundToInt((_gridSizeY - 1) * percentY), 0);
+            networkPosition.x = Mathf.Max(Mathf.CeilToInt((_gridSizeX - 1) * percentX), 0);
+            networkPosition.y = Mathf.Max(Mathf.CeilToInt((_gridSizeY - 1) * percentY), 0);
+            //networkPosition.z = 0;
             networkPosition.z = Mathf.RoundToInt((worldPosition.z) / Spacing);
             return networkPosition;
         }
+
         // Gets the node from the worldPosition. Will check all depths till DefaultDepthValue. Filters through a layermask.
         public Node GetNodeFromWorldPosition(Vector3 worldPosition, LayerMask allowedTerrain, bool searchDepth)
         {
@@ -78,11 +80,7 @@ namespace Path2d
         // Rounding innaccuraries can create a rare issue in which x positions get shifted by 1. This is a temporary solution.
         public Node GetShiftedNodeFromWorldPosition(Vector3 worldPosition, LayerMask allowedTerrain, bool searchDepth)
         {
-            worldPosition.x += Spacing;
-            Node node = GetNodeFromWorldPosition(worldPosition, allowedTerrain, searchDepth);
-            if (node != null)
-                return node;
-            worldPosition.x -= Spacing * 2;
+            //worldPosition.y += Spacing;
             return GetNodeFromWorldPosition(worldPosition, allowedTerrain, searchDepth);
         }
         // Heavy method that gets the closest node to the worldPosition. Filters through a LayerMask
@@ -213,7 +211,8 @@ namespace Path2d
             _agent.WalkableTerrainTypesDictionary.TryGetValue(layer, out int movementPenalty);
             Node node = new Node(layer, movementPenalty, networkPosition, worldPosition);
             int hash = node.GetHashCode();
-            _nodeNetwork.Add(hash, node);
+            if (!_nodeNetwork.ContainsKey(hash))
+                _nodeNetwork.Add(hash, node);
             return node;
         }
         // Will create or modift a Node. When making nodes manually, use this method.

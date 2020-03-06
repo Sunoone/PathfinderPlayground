@@ -8,26 +8,30 @@ namespace Path2d.CustomNodeNetwork {
 
     public abstract class CustomNodeNetworkComponent : MonoBehaviour
     {
-#if UNITY_EDITOR
-#pragma warning disable 414
-        [SerializeField][ReadOnly]
-        private int _depthValue = -1;
-#pragma warning restore 414
-        [SerializeField][HideInInspector]
-        private NodeNetworkAgent _nodeNetworkAgent;
-        [SerializeField][HideInInspector]
-        private float _spacing;
-#endif
-
-
+        /// <summary>
+        /// Finds the nodes this gameobject overlaps, modifies their layer to the gameobject's layer and returns all the nodes modified.
+        /// </summary>
+        /// <param name="nodeNetwork">NodeNetwork which will be modified</param>
+        /// <returns>List of all modified nodes</returns>
         public virtual List<Node> CreateCustomNodeNetwork(NodeNetwork nodeNetwork)
+        {
+            return CreateCustomNodeNetwork(nodeNetwork, gameObject.layer);
+        }
+
+        /// <summary>
+        /// Finds the nodes this gameobject overlaps, modifies their layer to the specified layer and returns all the nodes modified.
+        /// </summary>
+        /// <param name="nodeNetwork">NodeNetwork which will be modified</param>
+        /// <param name="layer">The nodes their new layer</param>
+        /// <returns>List of all modified nodes</returns>
+        protected virtual List<Node> CreateCustomNodeNetwork(NodeNetwork nodeNetwork, int layer)
         {
             float spacing = nodeNetwork.Spacing;
             int innerNetworkSizeX = Mathf.Max(Mathf.RoundToInt(((transform.localScale.x)) / spacing), 1);
             int innerNetworkSizeY = Mathf.Max(Mathf.RoundToInt(((transform.localScale.y)) / spacing), 1);
 
             Vector3 size = new Vector3((transform.localScale.x), (transform.localScale.y), 0);
-            Vector3 worldBottomLeft = transform.position - (size/2);
+            Vector3 worldBottomLeft = transform.position - (size / 2);
             List<Node> innerNetworkNodes = new List<Node>();
             for (int x = 0; x <= innerNetworkSizeX + 0; x++)
             {
@@ -40,7 +44,7 @@ namespace Path2d.CustomNodeNetwork {
 
                     if (!innerNetworkNodes.Contains(node) && node.WorldPosition.z >= transform.position.z)
                     {
-                        nodeNetwork.MofidyNode(node, gameObject.layer);
+                        nodeNetwork.MofidyNode(node, layer);
                         innerNetworkNodes.Add(node);
                     }
                 }
@@ -49,17 +53,23 @@ namespace Path2d.CustomNodeNetwork {
         }
 
 #if UNITY_EDITOR
-        private void Reset()
-        {
-            _nodeNetworkAgent = FindObjectOfType<NodeNetwork>().Agent;
-        }
-
+        
         public bool ShowGizmos = true;
+        public Color GizmoColor = Color.white;
+        
+#pragma warning disable 414 // Disables "never used" warning.
+        [SerializeField]
+        [ReadOnly]
+        private int _depthValue = -1;
+#pragma warning restore 414
+
         public virtual void OnDrawGizmos()
         {
             if (!ShowGizmos)
                 return;
 
+            // Draws the rectangle used for the overlap within the CreateCustomNodeNetwork method.
+            Gizmos.color = GizmoColor;
             Vector3 size = new Vector3((transform.localScale.x), (transform.localScale.y), 0);
             Vector3 position = transform.position;
             Vector3 worldBottomLeft = position - (size / 2);
@@ -69,6 +79,7 @@ namespace Path2d.CustomNodeNetwork {
 
             Gizmos.DrawWireCube(position, size);
         }
-    }
 #endif
+    }
+
 }
